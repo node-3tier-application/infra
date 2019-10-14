@@ -15,17 +15,45 @@ provider "kubernetes" {}
 data "kubernetes_secret" "gitlab_token" {
   metadata {
     #TODO: #reviselater
-    name = "gitlab-admin-token-9srkh" 
+    name      = "gitlab-admin-token-9srkh"
     namespace = "kube-system"
   }
 }
 
+
+variable "gitlab_projects" {
+  type        = map(string)
+  description = "list of gitlab project ids"
+  default = {
+    api = "14808338"
+    web = "14808355"
+  }
+}
+
+
+
 module "gitlab" {
-  source         = "../../../modules/gitlab"
-  gitlab_project = "13886944"
+  source = "../../../modules/gitlab"
+  # FOR FUTURE VERSION 
+  # for_each       = var.gitlab_projects
+  # gitlab_project = tag.value
+  
+  # count          = length(var.gitlab_projects)
+  # gitlab_project = var.gitlab_projects[count.index]
+  gitlab_project = var.gitlab_projects["api"]
   gitlab_ci_vars = {
     SERVER                     = "https://${data.terraform_remote_state.local_tfstate.outputs.cluster_name.endpoint}"
     CERTIFICATE_AUTHORITY_DATA = data.terraform_remote_state.local_tfstate.outputs.cluster_name.master_auth[0].cluster_ca_certificate
-    USER_TOKEN = data.kubernetes_secret.gitlab_token.data.token
+    USER_TOKEN                 = data.kubernetes_secret.gitlab_token.data.token
+  }
+}
+
+module "gitlab_web" {
+  source = "../../../modules/gitlab"
+  gitlab_project = var.gitlab_projects["web"]
+  gitlab_ci_vars = {
+    SERVER                     = "https://${data.terraform_remote_state.local_tfstate.outputs.cluster_name.endpoint}"
+    CERTIFICATE_AUTHORITY_DATA = data.terraform_remote_state.local_tfstate.outputs.cluster_name.master_auth[0].cluster_ca_certificate
+    USER_TOKEN                 = data.kubernetes_secret.gitlab_token.data.token
   }
 }

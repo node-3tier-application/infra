@@ -8,14 +8,13 @@ resource "google_sql_database_instance" "master" {
   region           = "${var.region}"
   depends_on = [
     "google_project_service.sqladmin",
-    "google_service_networking_connection.private_vpc_connection"
   ]
   settings {
     tier              = "${var.sql_instance_size}"
     availability_type = "${var.availability_type}"
     ip_configuration {
       ipv4_enabled    = false
-      private_network = "${google_compute_network.private_network.self_link}"
+      private_network = "${google_compute_network.vpc_default.self_link}"
     }
     backup_configuration {
       enabled    = "${var.enable_backup}"
@@ -43,7 +42,7 @@ resource "google_sql_database_instance" "replica" {
     disk_autoresize = true
     ip_configuration {
       ipv4_enabled    = false
-      private_network = google_compute_network.private_network.self_link
+      private_network = google_compute_network.vpc_default.self_link
     }
     location_preference {
       zone = "${var.region}-${var.sql_replica_zone}"
