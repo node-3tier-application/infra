@@ -1,0 +1,118 @@
+#+TITLE: Readme for provisioning
+#+DATE: Sunday, Aug 18 2019
+#+DESCRIPTION: provisioning node-3tier app with terraform
+
+* Pre-Demo Steps
+  - [X] create a new project on gcloud
+    #+begin_src bash
+    PROJECT_ID=node-3tier-application make create_project
+    #+end_src
+
+  - [X] create service accounts for:
+    - [X] terraform to use
+      permission: project owner
+      #+begin_src bash
+      make configure_user
+      #+end_src
+
+    - [X] ci_builder
+      permission:
+      - Cloud Build Editor
+      - Storage Reader
+      - project -> Viewer
+        #+CAPTION: ci_builder service account permission
+        #+NAME:   fig:service_account
+        #+ATTR_ORG: :height 200
+        [[./img/ci_builder.png]]
+* Demo steps
+** enable the google api services
+   #+begin_src bash
+   cd ./gcloud
+   make enable-gcloud-resources PROJECT_ID=node-3tier-application
+   #+end_src
+
+** provision/configure the infra
+  - [X] provision the cluster first
+    ETA: 15mins
+    #+begin_src bash
+    cd ./gcloud
+    make run         # which import terraform states, builds plan and applies it
+    #+end_src
+  - [X] configure kubectl config
+    #+begin_src bash
+    make get-kubeconfig         # which populates the kubectl ~/.kube/config
+    #+end_src
+  - [X] create api & web secrets on k8s cluster
+    #+begin_src bash
+    make genreate-secrets       # this will create secrets: api-secrets, web-secrets
+    #+end_src
+** configure ci metas necessary for deployment
+  - [X] publish gitlab service account to k8s cluster, 
+    why: gitlab-ci runners could invoke the deployment of new resources to k8s cluster
+    #+begin_src bash
+    cd ~/repos/thapakazi/node-3tier-app/provision/kubernetes
+    make create-gitlab-svc-account 
+    #+end_src
+
+  - [X] create/update [[https://gitlab.com/thapakazi/node-3tier-app/-/settings/ci_cd][CI/CD secret variables]] on gitlab, secrets could be found with:
+    #+begin_src bash
+    cd ~/repos/thapakazi/node-3tier-app/provision/kubernetes
+    make get-cluster-info |tee /tmp/cluster-info
+    #+end_src
+    *Watchout, when you copy these secrets to gitlab, you might introduce new lines*
+
+    Update the variable on ci/cd settings: https://gitlab.com/thapakazi/node-3tier-app/-/settings/ci_cd
+** Create k8s resources
+   - [X] create services for api and web
+     #+begin_src bash
+     cd ~/repos/thapakazi/node-3tier-app/api && make create-service
+     cd ~/repos/thapakazi/node-3tier-app/web && make create-ingress
+     #+end_src
+   - [X] create ingress for web
+     ETA: 5min+
+     Explained: it provisions a loadbalancer forwarding traffic from internet -> svc/web -> po/web-*
+     #+begin_src bash
+     cd ~/repos/thapakazi/node-3tier-app/web
+     make create-ingress
+     kubectl describe ingress/web-ingress
+     #+end_src
+** Create dns entries
+   - [X] for web and assets
+
+** Test CI/CD
+   - [X] make a change to api
+   - [X] make change to web
+
+** Cleanup
+  As jbp petersons says, cleanup your room.
+  1. cleanup ingress first
+     #+begin_src bash :results drawer
+     kubectl get ingress/web-ingress && kubectl delete ingress/web-ingress 
+     #+end_src
+
+     #+RESULTS:
+     :results:
+     NAME          HOSTS   ADDRESS           PORTS   AGE
+     web-ingress   *       107.178.255.190   80      5h36m
+     ingress.extensions "web-ingress" deleted
+     :end:
+  2. cleanup the infra
+     #+begin_src bash
+     cd provision/gcloud && make clean
+     echo "run $ terraform destory #don't blame me afterwards"
+     #+end_src
+
+     #+RESULTS:
+
+  
+
+* DONE GCloud
+  - [X] create a project and get json key
+  - [X] provision the gke cluster
+  - [X] provision the database: pg (private ip only inside vpc)
+  - [X] save database credentials into kuberenets secrets
+  - [X] sql backup enabled for cloud sql
+  - [X] logging of apps using loki and stackdiver
+  - [X] error reporting using gcloud error reporting
+  - [X] basic monitoring with prometheus
+
