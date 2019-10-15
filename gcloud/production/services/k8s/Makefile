@@ -3,9 +3,18 @@ PLAN_FILE?=/tmp/plan
 plan:
 	terraform plan -out ${PLAN_FILE}
 
-exec: plan
+imports:
+	@terraform import -provider=google-beta \
+		module.db.google_compute_network.vpc_default default
+exec:
 	terraform apply ${PLAN_FILE}
 
+run: imports plan exec
+
+
+##---------------------------------------------
+###  output section                         ###
+##---------------------------------------------
 output:
 	terraform output
 
@@ -15,11 +24,6 @@ get-kubeconfig:
 		--region "$(shell terraform output region)" \
 		--project "$(shell terraform output project_id)"
 
-imports:
-	@terraform import -provider=google-beta \
-		module.db.google_compute_network.vpc_default default
-
-
 ##----------------------------------------------
 ###  secrets sections                        ###
 ##----------------------------------------------
@@ -28,8 +32,17 @@ generate-api-secrets:
 	@kubectl describe secret/api-secrets
 
 generate-web-secrets:
-	@kubectl create secret generic web-secrets  --from-literal "API_HOST=http://api" --from-literal "NODE_ENV=production" # --from-literal "CDN_URL=//assets.thisthing.works"
+	@kubectl create secret generic web-secrets  --from-literal "API_HOST=http://api" --from-literal "NODE_ENV=production" --from-literal "CDN_URL=//assets.thisthing.works"
 	@kubectl describe secret/web-secrets
 
 generate-secrets: generate-web-secrets generate-api-secrets
 
+
+#-------------------------------------------------
+###  DESTRUCTIVE COMMAND                        ###
+#-------------------------------------------------
+clean: clean_imports
+	terraform destroy
+
+clean_imports:
+	terraform state rm module.db.google_compute_network.vpc_default

@@ -3,12 +3,14 @@
 #+DESCRIPTION: provisioning node-3tier app with terraform
 
 * Pre-Demo Steps
-  - [X] create a new project on gcloud
+** [X] create a new project on gcloud
     #+begin_src bash
     PROJECT_ID=node-3tier-application make create_project
     #+end_src
-
-  - [X] create service accounts for:
+** [X] USE UI: create service accounts for:
+   #+begin_quote
+   USE console ui, and do same as below; following steps seems to have issues, #reviselater
+   #+end_quote
     - [X] terraform to use
       permission: project owner
       #+begin_src bash
@@ -35,7 +37,7 @@
   - [X] provision the cluster first
     ETA: 15mins
     #+begin_src bash
-    cd ./gcloud
+    cd ./gcloud/production/services/k8s
     make run         # which import terraform states, builds plan and applies it
     #+end_src
   - [X] configure kubectl config
@@ -46,18 +48,19 @@
     #+begin_src bash
     make genreate-secrets       # this will create secrets: api-secrets, web-secrets
     #+end_src
+
 ** configure ci metas necessary for deployment
-  - [X] publish gitlab service account to k8s cluster, 
+*** DONE publish gitlab service account to k8s cluster, 
     why: gitlab-ci runners could invoke the deployment of new resources to k8s cluster
     #+begin_src bash
-    cd ~/repos/thapakazi/node-3tier-app/provision/kubernetes
+    cd ./infra/kubernetes
     make create-gitlab-svc-account 
     #+end_src
 
-  - [X] create/update [[https://gitlab.com/thapakazi/node-3tier-app/-/settings/ci_cd][CI/CD secret variables]] on gitlab, secrets could be found with:
+*** TODO [X] create/update [[https://gitlab.com/thapakazi/node-3tier-app/-/settings/ci_cd][CI/CD secret variables]] on gitlab, secrets could be found with:
     #+begin_src bash
-    cd ~/repos/thapakazi/node-3tier-app/provision/kubernetes
-    make get-cluster-info |tee /tmp/cluster-info
+    cd ./gcloud/production/services/extra/gitlab
+    make run
     #+end_src
     *Watchout, when you copy these secrets to gitlab, you might introduce new lines*
 
