@@ -2,6 +2,289 @@
 #+DATE: Sunday, Aug 18 2019
 #+DESCRIPTION: provisioning node-3tier app with terraform
 
+* TODO Remaining
+** DONE Get helm working
+
+  Helm is super easy, lets use it to fetch all the components.
+    1. Prepare a config file: [[./kubernetes/helm-tiller.yml]] first
+    2. Configure Service account and necessary role
+       #+begin_src bash
+       cd ./kubernetes && make create_helm_tiller_svc_account
+       #+end_src
+
+       #+RESULTS:
+       | serviceaccount/tiller                               | created |
+       | clusterrolebinding.rbac.authorization.k8s.io/tiller | created |
+
+    3. Install helm and init
+       #+begin_src bash :results drawer
+       cd ./kubernetes && make helm-init
+       #+end_src
+
+       #+RESULTS:
+       :results:
+       serviceaccount/tiller unchanged
+       clusterrolebinding.rbac.authorization.k8s.io/tiller unchanged
+       helm init --upgrade --service-account tiller
+       $HELM_HOME has been configured at /home/thapakazi/.helm.
+
+       Tiller (the Helm server-side component) has been upgraded to the current version.
+       Happy Helming!
+       :end:
+
+    4. Check helm working
+       #+begin_src bash :results drawer
+       cd ./kubernetes && make check_helm_working
+       #+end_src
+
+       #+RESULTS:
+       :results:
+       helm version
+       Client: &version.Version{SemVer:"v2.13.1", GitCommit:"618447cbf203d147601b4b9bd7f8c37a5d39fbb4", GitTreeState:"clean"}
+       Server: &version.Version{SemVer:"v2.13.1", GitCommit:"618447cbf203d147601b4b9bd7f8c37a5d39fbb4", GitTreeState:"clean"}
+       :end:
+
+** DONE prometheus metrics integration
+  - [X] Prepare a config file: [[./kubernetes/prom_custom_values.yml]] for prometheus stack
+
+  - [X] deploy the stack
+    #+begin_src bash :results drawer
+    cd ./kubernetes && make deploy_prom
+    #+end_src
+
+    #+RESULTS:
+    :results:
+    helm install \
+        --name prom \
+        --namespace observability \
+        -f prom_custom_values.yml \
+        stable/prometheus-operator
+    NAME:   prom
+    LAST DEPLOYED: Thu Oct 17 07:49:25 2019
+    NAMESPACE: observability
+    STATUS: DEPLOYED
+
+    RESOURCES:
+    ==> v1/Alertmanager
+    NAME                                   AGE
+    prom-prometheus-operator-alertmanager  15s
+
+    ==> v1/ClusterRole
+    NAME                                     AGE
+    prom-grafana-clusterrole                 16s
+    prom-prometheus-operator-alertmanager    16s
+    prom-prometheus-operator-operator        16s
+    prom-prometheus-operator-operator-psp    16s
+    prom-prometheus-operator-prometheus      16s
+    prom-prometheus-operator-prometheus-psp  16s
+    psp-prom-kube-state-metrics              16s
+
+    ==> v1/ClusterRoleBinding
+    NAME                                     AGE
+    prom-grafana-clusterrolebinding          16s
+    prom-prometheus-operator-alertmanager    16s
+    prom-prometheus-operator-operator        16s
+    prom-prometheus-operator-operator-psp    16s
+    prom-prometheus-operator-prometheus      16s
+    prom-prometheus-operator-prometheus-psp  16s
+    psp-prom-kube-state-metrics              16s
+
+    ==> v1/ConfigMap
+    NAME                                                        DATA  AGE
+    prom-grafana                                                1     16s
+    prom-grafana-config-dashboards                              1     16s
+    prom-grafana-test                                           1     16s
+    prom-prometheus-operator-grafana-datasource                 1     16s
+    prom-prometheus-operator-k8s-cluster-rsrc-use               1     16s
+    prom-prometheus-operator-k8s-node-rsrc-use                  1     16s
+    prom-prometheus-operator-k8s-resources-cluster              1     16s
+    prom-prometheus-operator-k8s-resources-namespace            1     16s
+    prom-prometheus-operator-k8s-resources-pod                  1     16s
+    prom-prometheus-operator-k8s-resources-workload             1     16s
+    prom-prometheus-operator-k8s-resources-workloads-namespace  1     16s
+    prom-prometheus-operator-nodes                              1     16s
+    prom-prometheus-operator-persistentvolumesusage             1     16s
+    prom-prometheus-operator-pods                               1     16s
+    prom-prometheus-operator-statefulset                        1     16s
+
+    ==> v1/Deployment
+    NAME                               READY  UP-TO-DATE  AVAILABLE  AGE
+    prom-kube-state-metrics            0/1    1           0          15s
+    prom-prometheus-operator-operator  1/1    1           1          15s
+
+    ==> v1/PersistentVolumeClaim
+    NAME          STATUS  VOLUME                                    CAPACITY  ACCESS MODES  STORAGECLASS  AGE
+    prom-grafana  Bound   pvc-771063bd-f082-11e9-bbbf-42010a8000fc  5Gi       RWO           standard      16s
+
+    ==> v1/Pod(related)
+    NAME                                                READY  STATUS    RESTARTS  AGE
+    prom-grafana-54b5d8c4c8-qjjkf                       0/2    Init:0/2  0         15s
+    prom-kube-state-metrics-86cd99855c-k769z            0/1    Running   0         15s
+    prom-prometheus-node-exporter-2gmqs                 1/1    Running   0         15s
+    prom-prometheus-node-exporter-b5ghv                 1/1    Running   0         15s
+    prom-prometheus-node-exporter-jjzfx                 1/1    Running   0         15s
+    prom-prometheus-operator-operator-5586d55879-4nwrj  2/2    Running   0         15s
+
+    ==> v1/Prometheus
+    NAME                                 AGE
+    prom-prometheus-operator-prometheus  15s
+
+    ==> v1/PrometheusRule
+    NAME                                                           AGE
+    prom-prometheus-operator-alertmanager.rules                    15s
+    prom-prometheus-operator-general.rules                         15s
+    prom-prometheus-operator-k8s.rules                             15s
+    prom-prometheus-operator-kube-apiserver.rules                  15s
+    prom-prometheus-operator-kube-prometheus-node-alerting.rules   15s
+    prom-prometheus-operator-kube-prometheus-node-recording.rules  15s
+    prom-prometheus-operator-kube-scheduler.rules                  15s
+    prom-prometheus-operator-kubernetes-absent                     15s
+    prom-prometheus-operator-kubernetes-apps                       15s
+    prom-prometheus-operator-kubernetes-resources                  15s
+    prom-prometheus-operator-kubernetes-storage                    14s
+    prom-prometheus-operator-kubernetes-system                     14s
+    prom-prometheus-operator-node-network                          14s
+    prom-prometheus-operator-node-time                             14s
+    prom-prometheus-operator-node.rules                            14s
+    prom-prometheus-operator-prometheus-operator                   14s
+    prom-prometheus-operator-prometheus.rules                      14s
+
+    ==> v1/Role
+    NAME               AGE
+    prom-grafana-test  16s
+
+    ==> v1/RoleBinding
+    NAME               AGE
+    prom-grafana-test  16s
+
+    ==> v1/Secret
+    NAME                                                TYPE    DATA  AGE
+    alertmanager-prom-prometheus-operator-alertmanager  Opaque  1     16s
+    prom-grafana                                        Opaque  3     16s
+
+    ==> v1/Service
+    NAME                                              TYPE       CLUSTER-IP   EXTERNAL-IP  PORT(S)           AGE
+    prom-grafana                                      ClusterIP  10.0.3.186   <none>       80/TCP            16s
+    prom-kube-state-metrics                           ClusterIP  10.0.5.195   <none>       8080/TCP          16s
+    prom-prometheus-node-exporter                     ClusterIP  10.0.7.49    <none>       30206/TCP         16s
+    prom-prometheus-operator-alertmanager             ClusterIP  10.0.14.231  <none>       9093/TCP          15s
+    prom-prometheus-operator-coredns                  ClusterIP  None         <none>       9153/TCP          15s
+    prom-prometheus-operator-kube-controller-manager  ClusterIP  None         <none>       10252/TCP         15s
+    prom-prometheus-operator-kube-proxy               ClusterIP  None         <none>       10249/TCP         15s
+    prom-prometheus-operator-kube-scheduler           ClusterIP  None         <none>       10251/TCP         15s
+    prom-prometheus-operator-operator                 ClusterIP  10.0.9.182   <none>       8080/TCP,443/TCP  15s
+    prom-prometheus-operator-prometheus               ClusterIP  10.0.11.183  <none>       9090/TCP          15s
+
+    ==> v1/ServiceAccount
+    NAME                                   SECRETS  AGE
+    prom-grafana                           1        16s
+    prom-grafana-test                      1        16s
+    prom-kube-state-metrics                1        16s
+    prom-prometheus-node-exporter          1        16s
+    prom-prometheus-operator-alertmanager  1        16s
+    prom-prometheus-operator-operator      1        16s
+    prom-prometheus-operator-prometheus    1        16s
+
+    ==> v1/ServiceMonitor
+    NAME                                              AGE
+    prom-prometheus-operator-alertmanager             14s
+    prom-prometheus-operator-apiserver                14s
+    prom-prometheus-operator-coredns                  14s
+    prom-prometheus-operator-grafana                  14s
+    prom-prometheus-operator-kube-controller-manager  14s
+    prom-prometheus-operator-kube-proxy               14s
+    prom-prometheus-operator-kube-scheduler           14s
+    prom-prometheus-operator-kube-state-metrics       14s
+    prom-prometheus-operator-kubelet                  14s
+    prom-prometheus-operator-node-exporter            14s
+    prom-prometheus-operator-operator                 14s
+    prom-prometheus-operator-prometheus               14s
+
+    ==> v1beta1/ClusterRole
+    NAME                               AGE
+    prom-kube-state-metrics            16s
+    psp-prom-prometheus-node-exporter  16s
+
+    ==> v1beta1/ClusterRoleBinding
+    NAME                               AGE
+    prom-kube-state-metrics            16s
+    psp-prom-prometheus-node-exporter  16s
+
+    ==> v1beta1/DaemonSet
+    NAME                           DESIRED  CURRENT  READY  UP-TO-DATE  AVAILABLE  NODE SELECTOR  AGE
+    prom-prometheus-node-exporter  3        3        3      3           3          <none>         15s
+
+    ==> v1beta1/MutatingWebhookConfiguration
+    NAME                                AGE
+    prom-prometheus-operator-admission  15s
+
+    ==> v1beta1/PodSecurityPolicy
+    NAME                                   PRIV   CAPS      SELINUX           RUNASUSER  FSGROUP    SUPGROUP  READONLYROOTFS  VOLUMES
+    prom-grafana                           false  RunAsAny  RunAsAny          RunAsAny   RunAsAny   false     configMap,emptyDir,projected,secret,downwardAPI,persistentVolumeClaim
+    prom-grafana-test                      false  RunAsAny  RunAsAny          RunAsAny   RunAsAny   false     configMap,downwardAPI,emptyDir,projected,secret
+    prom-kube-state-metrics                false  RunAsAny  MustRunAsNonRoot  MustRunAs  MustRunAs  false     secret
+    prom-prometheus-node-exporter          false  RunAsAny  RunAsAny          MustRunAs  MustRunAs  false     configMap,emptyDir,projected,secret,downwardAPI,persistentVolumeClaim,hostPath
+    prom-prometheus-operator-alertmanager  false  RunAsAny  RunAsAny          MustRunAs  MustRunAs  false     configMap,emptyDir,projected,secret,downwardAPI,persistentVolumeClaim
+    prom-prometheus-operator-operator      false  RunAsAny  RunAsAny          MustRunAs  MustRunAs  false     configMap,emptyDir,projected,secret,downwardAPI,persistentVolumeClaim
+    prom-prometheus-operator-prometheus    false  RunAsAny  RunAsAny          MustRunAs  MustRunAs  false     configMap,emptyDir,projected,secret,downwardAPI,persistentVolumeClaim
+
+    ==> v1beta1/Role
+    NAME          AGE
+    prom-grafana  16s
+
+    ==> v1beta1/RoleBinding
+    NAME          AGE
+    prom-grafana  16s
+
+    ==> v1beta1/ValidatingWebhookConfiguration
+    NAME                                AGE
+    prom-prometheus-operator-admission  14s
+
+    ==> v1beta2/Deployment
+    NAME          READY  UP-TO-DATE  AVAILABLE  AGE
+    prom-grafana  0/1    1           0          15s
+
+
+    NOTES:
+    The Prometheus Operator has been installed. Check its status by running:
+      kubectl --namespace observability get pods -l "release=prom"
+
+    Visit https://github.com/coreos/prometheus-operator for instructions on how
+    to create & configure Alertmanager and Prometheus instances using the Operator.
+    :end:
+
+  - [X] check the stack
+    #+begin_src bash :results drawer
+    kubectl get po -n observability
+    #+end_src
+
+    #+RESULTS:
+    :results:
+    NAME                                                   READY   STATUS    RESTARTS   AGE
+    alertmanager-prom-prometheus-operator-alertmanager-0   2/2     Running   0          75m
+    prom-grafana-54b5d8c4c8-qjjkf                          2/2     Running   0          75m
+    prom-kube-state-metrics-86cd99855c-k769z               1/1     Running   0          75m
+    prom-prometheus-node-exporter-2gmqs                    1/1     Running   0          75m
+    prom-prometheus-node-exporter-b5ghv                    1/1     Running   0          75m
+    prom-prometheus-node-exporter-jjzfx                    1/1     Running   0          75m
+    prom-prometheus-operator-operator-5586d55879-4nwrj     2/2     Running   0          75m
+    prometheus-prom-prometheus-operator-prometheus-0       3/3     Running   0          74m
+    :end:
+	#+CAPTION: observibility_get_po
+	#+NAME:   fig:observibility_get_po
+    #+ATTR_ORG: :height 200
+    [[./img/observebility_get_po.png]]
+
+* DONE GCloud
+  - [X] create a project and get json key
+  - [X] provision the gke cluster
+  - [X] provision the database: pg (private ip only inside vpc)
+  - [X] save database credentials into kuberenets secrets
+  - [X] sql backup enabled for cloud sql
+  - [X] logging of apps using loki and stackdiver
+  - [X] error reporting using gcloud error reporting
+  - [X] basic monitoring with prometheus
+
 * Pre-Demo Steps
 ** [X] create a new project on gcloud
     #+begin_src bash
@@ -50,26 +333,25 @@
     #+end_src
 
 ** configure ci metas necessary for deployment
-*** DONE publish gitlab service account to k8s cluster, 
+*** publish gitlab service account to k8s cluster
     why: gitlab-ci runners could invoke the deployment of new resources to k8s cluster
     #+begin_src bash
     cd ./infra/kubernetes
     make create-gitlab-svc-account 
     #+end_src
 
-*** TODO [X] create/update [[https://gitlab.com/thapakazi/node-3tier-app/-/settings/ci_cd][CI/CD secret variables]] on gitlab, secrets could be found with:
+*** create/update [[https://gitlab.com/thapakazi/node-3tier-app/-/settings/ci_cd][CI/CD secret variables]] on gitlab, secrets could be found with:
     #+begin_src bash
-    cd ./gcloud/production/services/extra/gitlab
+    cd ./gcloud/production/extra/gitlab
     make run
     #+end_src
-    *Watchout, when you copy these secrets to gitlab, you might introduce new lines*
 
-    Update the variable on ci/cd settings: https://gitlab.com/thapakazi/node-3tier-app/-/settings/ci_cd
+    This updates the CI variables on ci/cd settings: https://gitlab.com/node-3tier-application/-/settings/ci_cd
 ** Create k8s resources
    - [X] create services for api and web
      #+begin_src bash
-     cd ~/repos/thapakazi/node-3tier-app/api && make create-service
-     cd ~/repos/thapakazi/node-3tier-app/web && make create-ingress
+     cd ~/repos/node-3tier-application/api && make create-service
+     cd ~/repos/node-3tier-application/web && make create-service
      #+end_src
    - [X] create ingress for web
      ETA: 5min+
@@ -87,7 +369,10 @@
    - [X] make change to web
 
 ** Cleanup
-  As jbp petersons says, cleanup your room.
+   #+begin_quote
+   CLEANUP YOUR ROOM, MAN - Jordan Perterson
+   #+end_quote
+
   1. cleanup ingress first
      #+begin_src bash :results drawer
      kubectl get ingress/web-ingress && kubectl delete ingress/web-ingress 
@@ -101,21 +386,6 @@
      :end:
   2. cleanup the infra
      #+begin_src bash
-     cd provision/gcloud && make clean
      echo "run $ terraform destory #don't blame me afterwards"
      #+end_src
-
-     #+RESULTS:
-
-  
-
-* DONE GCloud
-  - [X] create a project and get json key
-  - [X] provision the gke cluster
-  - [X] provision the database: pg (private ip only inside vpc)
-  - [X] save database credentials into kuberenets secrets
-  - [X] sql backup enabled for cloud sql
-  - [X] logging of apps using loki and stackdiver
-  - [X] error reporting using gcloud error reporting
-  - [X] basic monitoring with prometheus
 
